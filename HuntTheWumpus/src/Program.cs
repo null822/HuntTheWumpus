@@ -2,7 +2,6 @@
 
 namespace HuntTheWumpus;
 
-// TODO: arrow count
 public static class Program
 {
     public static readonly Random Random = new();
@@ -42,10 +41,12 @@ public static class Program
             switch (HandleAction())
             {
                 case ActionResult.Death:
+                    Console.WriteLine(Lang.BreakMajor);
                     Console.WriteLine(Lang.Death);
                     exit = true;
                     break;
                 case ActionResult.Win:
+                    Console.WriteLine(Lang.BreakMajor);
                     Console.WriteLine(Lang.Win);
                     exit = true;
                     break;
@@ -73,16 +74,12 @@ public static class Program
                 _ => result
             };
         
-        var exit = false;
-        switch (result)
+        return result switch
         {
-            case ActionResult.Death:
-                return ActionResult.Death;
-            case ActionResult.Win:
-                return ActionResult.Win;
-            default:
-                return result;
-        }
+            ActionResult.Death => ActionResult.Death,
+            ActionResult.Win => ActionResult.Win,
+            _ => result
+        };
     }
 
     private static ActionResult HandleMove(RoomId? moveRoom = null)
@@ -132,32 +129,42 @@ public static class Program
     private static ActionResult HandleShoot()
     {
         Console.Write(Lang.ActionShoot);
-        var shootRoomStr = Console.ReadLine();
-        if (!RoomId.TryParse(shootRoomStr, out var shootRoom))
+        var roomsStr = Console.ReadLine();
+        if (roomsStr == null)
             return ActionResult.Fail;
-        
-        if (!_connectedRooms.Contains(shootRoom))
+
+
+        var connectedRooms = _connectedRooms;
+        foreach (var shootRoomStr in roomsStr.Split(' '))
         {
-            Console.WriteLine(Lang.InvalidShoot);
-            return ActionResult.Fail;
+            if (!RoomId.TryParse(shootRoomStr, out var shootRoom))
+                continue;
+            
+            if (!connectedRooms.Contains(shootRoom))
+            {
+                Console.WriteLine(Lang.InvalidShoot);
+                return ActionResult.Fail;
+            }
+            
+            if (CurrentLevel[shootRoom].HasWumpus)
+            {
+                Console.WriteLine(Lang.ArrowHit);
+                return ActionResult.Win;
+            }
+            
+            Console.WriteLine(Lang.ArrowMiss);
+
+            connectedRooms = CurrentLevel[shootRoom].GetRoomConnections();
         }
         
         _arrowCount--;
-        
-        if (CurrentLevel[shootRoom].HasWumpus)
-        {
-            Console.WriteLine(Lang.BreakMajor);
-            Console.WriteLine(Lang.ArrowHit);
-            return ActionResult.Win;
-        }
-        
-        Console.WriteLine(Lang.ArrowMiss);
         if (_arrowCount == 0)
         {
             Console.WriteLine(Lang.NoArrows);
             return ActionResult.Death;
         }
         Console.WriteLine(Lang.ArrowsLeft, _arrowCount);
+        
         return ActionResult.Success;
     }
 
