@@ -26,7 +26,8 @@ public static class Lang
     public const string Death = "HA HA HA - YOU LOSE!";
     public const string Win = "HEE HEE HEE - THE WUMPUS'LL GETCHA NEXT TIME!!";
     
-    public const string WumpusEnter = "...OOPS! BUMPED A WUMPUS!\nTSK TSK TSK - WUMPUS GOT YOU!";
+    public const string WumpusWake = "YOU WOKE THE WUMPUS!";
+    public const string WumpusDeath = "...OOPS! BUMPED A WUMPUS!\nTSK TSK TSK - WUMPUS GOT YOU!";
     public const string PitEnter = "YYYIIIIEEEE . . . FELL IN PIT";
     public const string BatEnter = "ZAP--SUPER BAT SNATCH! ELSEWHEREVILLE FOR YOU!";
     public const string NoArrows = "YOU'VE RUN OUT OF ARROWS!";

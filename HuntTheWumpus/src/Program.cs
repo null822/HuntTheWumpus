@@ -5,33 +5,33 @@ namespace HuntTheWumpus;
 public static class Program
 {
     public static readonly Random Random = new();
-
-    public static Level CurrentLevel { get; private set; } = null!;
-
+    
+    public static Level Level { get; private set; } = null!;
+    
     private static RoomId _playerPos = new(0);
     private static RoomId[] _connectedRooms = [];
     private static int _arrowCount = 5;
     
     public static void Main()
     {
-        CurrentLevel = new Level();
+        Level = new Level();
         _playerPos = new RoomId(Random.Next(20));
 
         for (var i = 0; i < 20; i++)
         {
             var id = new RoomId(i);
-            Console.WriteLine($"{id} : {CurrentLevel[id]}");
+            Console.WriteLine($"{id} : {Level[id]}");
         }
         
         while (true)
         {
             Console.WriteLine(Lang.BreakMinor);
             
-            _connectedRooms = CurrentLevel[_playerPos].GetRoomConnections();
+            _connectedRooms = Level[_playerPos].GetRoomConnections();
             
             Console.WriteLine(Lang.CurrentRoom, _playerPos);
             Console.WriteLine(Lang.TunnelConnections, _connectedRooms[0], _connectedRooms[1], _connectedRooms[2]);
-            var messages = CurrentLevel.GetNearbyMessages(_playerPos);
+            var messages = Level.GetNearbyMessages(_playerPos);
             foreach (var message in messages)
             {
                 Console.WriteLine(message);
@@ -106,11 +106,10 @@ public static class Program
 
     private static ActionResult HandleRoomEnter()
     {
-        var newRoom = CurrentLevel[_playerPos];
+        var newRoom = Level[_playerPos];
         if (newRoom.HasWumpus)
         {
-            Console.WriteLine(Lang.WumpusEnter);
-            return ActionResult.Death;
+            return WakeWumpus(_playerPos);
         }
         switch (newRoom)
         {
@@ -125,15 +124,14 @@ public static class Program
                 return ActionResult.Success;
         }
     }
-
+    
     private static ActionResult HandleShoot()
     {
         Console.Write(Lang.ActionShoot);
         var roomsStr = Console.ReadLine();
         if (roomsStr == null)
             return ActionResult.Fail;
-
-
+        
         var connectedRooms = _connectedRooms;
         foreach (var shootRoomStr in roomsStr.Split(' '))
         {
@@ -146,15 +144,22 @@ public static class Program
                 return ActionResult.Fail;
             }
             
-            if (CurrentLevel[shootRoom].HasWumpus)
+            if (Level[shootRoom].HasWumpus)
             {
                 Console.WriteLine(Lang.ArrowHit);
-                return ActionResult.Win;
+                var wakeResult = WakeWumpus(shootRoom);
+                switch (wakeResult)
+                {
+                    case ActionResult.Fail:
+                        return ActionResult.Win;
+                    default:
+                        return ActionResult.Success;
+                }
             }
             
             Console.WriteLine(Lang.ArrowMiss);
 
-            connectedRooms = CurrentLevel[shootRoom].GetRoomConnections();
+            connectedRooms = Level[shootRoom].GetRoomConnections();
         }
         
         _arrowCount--;
@@ -166,6 +171,29 @@ public static class Program
         Console.WriteLine(Lang.ArrowsLeft, _arrowCount);
         
         return ActionResult.Success;
+    }
+
+    private static ActionResult WakeWumpus(RoomId wumpusRoomId)
+    {
+        var choice = Random.Next(4);
+        if (choice != 3)
+        {
+            var wumpusRoom = Level[wumpusRoomId];
+            wumpusRoom.HasWumpus = false;
+            wumpusRoomId = wumpusRoom.GetRoomConnections()[choice];
+            wumpusRoom = Level[wumpusRoomId];
+            wumpusRoom.HasWumpus = true;
+        }
+        
+        Console.WriteLine(Lang.WumpusWake);
+        
+        if (_playerPos == wumpusRoomId)
+        {
+            Console.WriteLine(Lang.WumpusDeath);
+            return ActionResult.Death;
+        }
+        
+        return choice == 3 ? ActionResult.Fail : ActionResult.Success;
     }
 
     private enum ActionResult
