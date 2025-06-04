@@ -5,7 +5,7 @@ namespace HuntTheWumpus;
 public record RoomId(int RingIndex, int RoomIndex)
 {
     public RoomId(int packed) : this(packed / 5, packed % 5) { }
-
+    
     public static bool TryParse(string? str, [MaybeNullWhen(false)] out RoomId id)
     {
         id = null;

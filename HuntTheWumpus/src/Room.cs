@@ -2,23 +2,11 @@
 
 public abstract class Room
 {
-    public RoomId Id = new RoomId(-1, -1);
+    public RoomId Id = new(-1, -1);
     public bool HasWumpus = false;
-
-    protected event AddMessage GetMessages = _ => { };
-    protected delegate void AddMessage(List<string> messages);
-
+    
     public abstract string Type { get; }
     
-    protected Room()
-    {
-        GetMessages += messages =>
-        {
-            if (HasWumpus)
-                messages.Add(Lang.WumpusNearby);
-        };
-    }
-
     public RoomId[] GetRoomConnections()
     {
         int newRingInter;
@@ -47,10 +35,10 @@ public abstract class Room
         
         return [inter1, inter2, intra];
     }
-
-    public void AddMessages(List<string> messageList)
+    
+    public virtual void AddMessages(List<string> messages)
     {
-        GetMessages(messageList);
+        if (HasWumpus) messages.Add(Lang.WumpusNearby);
     }
     
     public override string ToString()

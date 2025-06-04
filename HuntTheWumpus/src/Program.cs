@@ -11,55 +11,71 @@ public static class Program
     private static RoomId _playerPos = new(0);
     private static RoomId[] _connectedRooms = [];
     private static int _arrowCount = 5;
+    private static bool _debugMode;
     
     public static void Main()
     {
         Level = new Level();
         _playerPos = new RoomId(Random.Next(20));
-
-        for (var i = 0; i < 20; i++)
-        {
-            var id = new RoomId(i);
-            Console.WriteLine($"{id} : {Level[id]}");
-        }
         
         while (true)
         {
-            Console.WriteLine(Lang.BreakMinor);
+            ActionResult action;
             
-            _connectedRooms = Level[_playerPos].GetRoomConnections();
-            
-            Console.WriteLine(Lang.CurrentRoom, _playerPos);
-            Console.WriteLine(Lang.TunnelConnections, _connectedRooms[0], _connectedRooms[1], _connectedRooms[2]);
-            var messages = Level.GetNearbyMessages(_playerPos);
-            foreach (var message in messages)
+            if (_debugMode)
             {
-                Console.WriteLine(message);
+                action = HandleDebug();
+            }
+            else
+            {
+                Console.WriteLine(Lang.BreakMinor);
+                
+                action = HandleRoomEnter();
+                
+                if (action is not (ActionResult.Win or ActionResult.Death))
+                {
+                    _connectedRooms = Level[_playerPos].GetRoomConnections();
+
+                    Console.WriteLine(Lang.CurrentRoom, _playerPos);
+                    Console.WriteLine(Lang.TunnelConnections, 
+                        _connectedRooms[0],
+                        _connectedRooms[1],
+                        _connectedRooms[2]);
+                    var messages = Level.GetNearbyMessages(_playerPos);
+                    foreach (var message in messages)
+                    {
+                        Console.WriteLine(message);
+                    }
+
+                    action = HandleAction();
+                }
             }
             
-            var exit = false;
-            switch (HandleAction())
+            if (action == ActionResult.Death)
             {
-                case ActionResult.Death:
-                    Console.WriteLine(Lang.BreakMajor);
-                    Console.WriteLine(Lang.Death);
-                    exit = true;
-                    break;
-                case ActionResult.Win:
-                    Console.WriteLine(Lang.BreakMajor);
-                    Console.WriteLine(Lang.Win);
-                    exit = true;
-                    break;
+                Console.WriteLine(Lang.Death);
+                break;
             }
-            if (exit) break;
+            if (action == ActionResult.Win)
+            {
+                Console.WriteLine(Lang.Win);
+                break;
+            }
         }
     }
 
     private static ActionResult HandleAction()
     {
         Console.Write(Lang.Action);
-        var action = Console.ReadLine()?.ToUpper();
+        var action = Console.ReadLine()?.ToLower();
         if (action == null) return ActionResult.Fail;
+
+        if (action == "dbg")
+        {
+            _debugMode = true;
+            Console.WriteLine("Debug Mode Enabled");
+            return ActionResult.Success;
+        }
         
         var result = ActionResult.Fail;
         if (RoomId.TryParse(action, out var moveRoomShortcut))
@@ -69,17 +85,12 @@ public static class Program
         else
             result = action switch
             {
-                "S" => HandleShoot(),
-                "M" => HandleMove(),
+                "s" => HandleShoot(),
+                "m" => HandleMove(),
                 _ => result
             };
-        
-        return result switch
-        {
-            ActionResult.Death => ActionResult.Death,
-            ActionResult.Win => ActionResult.Win,
-            _ => result
-        };
+
+        return result;
     }
 
     private static ActionResult HandleMove(RoomId? moveRoom = null)
@@ -101,7 +112,7 @@ public static class Program
         
         _playerPos = moveRoom;
 
-        return HandleRoomEnter();
+        return ActionResult.Success;
     }
 
     private static ActionResult HandleRoomEnter()
@@ -109,7 +120,9 @@ public static class Program
         var newRoom = Level[_playerPos];
         if (newRoom.HasWumpus)
         {
-            return WakeWumpus(_playerPos);
+            var action = WakeWumpus(_playerPos);
+            if (action is ActionResult.Death or ActionResult.Win)
+                return action;
         }
         switch (newRoom)
         {
@@ -196,6 +209,51 @@ public static class Program
         return choice == 3 ? ActionResult.Fail : ActionResult.Success;
     }
 
+    private static ActionResult HandleDebug()
+    {
+        Console.Write("dbg > ");
+        var cmd = Console.ReadLine()?.ToLower().Split(' ');
+        if (cmd is null) return ActionResult.Fail;
+        var args = cmd[1..];
+        
+        switch (cmd[0])
+        {
+            case "ls":
+                for (var i = 0; i < 20; i++)
+                {
+                    var id = new RoomId(i);
+                    Console.WriteLine($"{id} : {Level[id]}");
+                }
+                break;
+            case "tp":
+                if (RoomId.TryParse(args[0], out var tpPos))
+                    _playerPos = tpPos;
+                break;
+            case "set":
+                if (!RoomId.TryParse(args[0], out var setPos))
+                    break;
+                var withWumpus = args is [_, _, "wumpus", ..];
+                Level[setPos] = args[1] switch
+                {
+                    "bat" => new BatRoom { HasWumpus = withWumpus },
+                    "pit" => new PitRoom { HasWumpus = withWumpus },
+                    "empty" => new EmptyRoom { HasWumpus = withWumpus },
+                };
+                break;
+            case "exit":
+                _debugMode = false;
+                break;
+            case "death": return ActionResult.Death;
+            case "win": return ActionResult.Win;
+            
+            default:
+                Console.WriteLine($"Command {cmd[0]} not found!");
+                return ActionResult.Fail;
+        }
+
+        return ActionResult.Success;
+    }
+    
     private enum ActionResult
     {
         Success,

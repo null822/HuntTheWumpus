@@ -4,8 +4,9 @@ public class PitRoom : Room
 {
     public override string Type => "Pit";
     
-    public PitRoom()
+    public override void AddMessages(List<string> messages)
     {
-        GetMessages += messages => messages.Add(Lang.PitNearby);
+        base.AddMessages(messages);
+        messages.Add(Lang.PitNearby);
     }
 }

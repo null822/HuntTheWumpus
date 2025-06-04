@@ -3,9 +3,10 @@
 public class BatRoom : Room
 {
     public override string Type => "Bat";
-
-    public BatRoom()
+    
+    public override void AddMessages(List<string> messages)
     {
-        GetMessages += messages => messages.Add(Lang.BatNearby);
+        base.AddMessages(messages);
+        messages.Add(Lang.BatNearby);
     }
 }
