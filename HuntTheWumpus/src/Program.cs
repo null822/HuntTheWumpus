@@ -6,8 +6,7 @@ public static class Program
 {
     public static readonly Random Random = new();
     
-    public static Level Level { get; private set; } = null!;
-    
+    private static Level _level = null!;
     private static RoomId _playerPos = new(0);
     private static RoomId[] _connectedRooms = [];
     private static int _arrowCount = 5;
@@ -15,7 +14,8 @@ public static class Program
     
     public static void Main()
     {
-        Level = new Level();
+        Console.ForegroundColor = ConsoleColor.Gray;
+        _level = new Level();
         _playerPos = new RoomId(Random.Next(20));
         
         while (true)
@@ -31,17 +31,19 @@ public static class Program
                 Console.WriteLine(Lang.BreakMinor);
                 
                 action = HandleRoomEnter();
+                if (action == ActionResult.Success)
+                    continue;
                 
                 if (action is not (ActionResult.Win or ActionResult.Death))
                 {
-                    _connectedRooms = Level[_playerPos].GetRoomConnections();
+                    _connectedRooms = _level[_playerPos].GetRoomConnections();
 
                     Console.WriteLine(Lang.CurrentRoom, _playerPos);
                     Console.WriteLine(Lang.TunnelConnections, 
                         _connectedRooms[0],
                         _connectedRooms[1],
                         _connectedRooms[2]);
-                    var messages = Level.GetNearbyMessages(_playerPos);
+                    var messages = _level.GetNearbyMessages(_playerPos);
                     foreach (var message in messages)
                     {
                         Console.WriteLine(message);
@@ -117,7 +119,7 @@ public static class Program
 
     private static ActionResult HandleRoomEnter()
     {
-        var newRoom = Level[_playerPos];
+        var newRoom = _level[_playerPos];
         if (newRoom.HasWumpus)
         {
             var action = WakeWumpus(_playerPos);
@@ -134,7 +136,7 @@ public static class Program
                 Console.WriteLine(Lang.PitEnter);
                 return ActionResult.Death;
             default:
-                return ActionResult.Success;
+                return ActionResult.Fail;
         }
     }
     
@@ -157,7 +159,7 @@ public static class Program
                 return ActionResult.Fail;
             }
             
-            if (Level[shootRoom].HasWumpus)
+            if (_level[shootRoom].HasWumpus)
             {
                 Console.WriteLine(Lang.ArrowHit);
                 var wakeResult = WakeWumpus(shootRoom);
@@ -172,7 +174,7 @@ public static class Program
             
             Console.WriteLine(Lang.ArrowMiss);
 
-            connectedRooms = Level[shootRoom].GetRoomConnections();
+            connectedRooms = _level[shootRoom].GetRoomConnections();
         }
         
         _arrowCount--;
@@ -191,10 +193,10 @@ public static class Program
         var choice = Random.Next(4);
         if (choice != 3)
         {
-            var wumpusRoom = Level[wumpusRoomId];
+            var wumpusRoom = _level[wumpusRoomId];
             wumpusRoom.HasWumpus = false;
             wumpusRoomId = wumpusRoom.GetRoomConnections()[choice];
-            wumpusRoom = Level[wumpusRoomId];
+            wumpusRoom = _level[wumpusRoomId];
             wumpusRoom.HasWumpus = true;
         }
         
@@ -211,19 +213,36 @@ public static class Program
 
     private static ActionResult HandleDebug()
     {
+        Console.ForegroundColor = ConsoleColor.Cyan;
         Console.Write("dbg > ");
+        Console.ForegroundColor = ConsoleColor.Gray;
         var cmd = Console.ReadLine()?.ToLower().Split(' ');
         if (cmd is null) return ActionResult.Fail;
         var args = cmd[1..];
         
         switch (cmd[0])
         {
+            case "help":
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("help - Display help information");
+                Console.WriteLine("ls - List all rooms");
+                Console.WriteLine("tp {room (RoomId)} - Move to room");
+                Console.WriteLine("set {room (int)} {room type (string)} {with wumpus (bool)} - Display help information");
+                Console.WriteLine("exit - Exit debug mode");
+                Console.WriteLine("death - Die instantly");
+                Console.WriteLine("win - Win instantly");
+                Console.ForegroundColor = ConsoleColor.Gray;
+                break;
+            }
             case "ls":
+                Console.ForegroundColor = ConsoleColor.Gray;
                 for (var i = 0; i < 20; i++)
                 {
                     var id = new RoomId(i);
-                    Console.WriteLine($"{id} : {Level[id]}");
+                    Console.WriteLine($"{id} : {_level[id]}");
                 }
+                Console.ForegroundColor = ConsoleColor.Gray;
                 break;
             case "tp":
                 if (RoomId.TryParse(args[0], out var tpPos))
@@ -233,7 +252,7 @@ public static class Program
                 if (!RoomId.TryParse(args[0], out var setPos))
                     break;
                 var withWumpus = args is [_, _, "wumpus", ..];
-                Level[setPos] = args[1] switch
+                _level[setPos] = args[1].ToLower() switch
                 {
                     "bat" => new BatRoom { HasWumpus = withWumpus },
                     "pit" => new PitRoom { HasWumpus = withWumpus },
@@ -247,10 +266,12 @@ public static class Program
             case "win": return ActionResult.Win;
             
             default:
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Command {cmd[0]} not found!");
+                Console.ForegroundColor = ConsoleColor.Gray;
                 return ActionResult.Fail;
         }
-
+        
         return ActionResult.Success;
     }
     
